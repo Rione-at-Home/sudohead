@@ -24,7 +24,9 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'sudohead_node = sudohead.sudohead_node:main'
+            
+            'sudohead_node = sudohead.head_node:main'
+            
         ],
     },
 )
