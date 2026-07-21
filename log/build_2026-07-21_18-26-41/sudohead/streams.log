@@ -1,0 +1,40 @@
+[0.480s] Invoking command in '/home/ri-one/sudohead/sudohead': PYTHONPATH=/home/ri-one/sudohead/build/sudohead/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/ri-one/sudohead/install/sudohead/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../build/sudohead build --build-base /home/ri-one/sudohead/build/sudohead/build install --record /home/ri-one/sudohead/build/sudohead/install.log --single-version-externally-managed install_data
+[0.648s] running egg_info
+[0.648s] creating ../build/sudohead/sudohead.egg-info
+[0.648s] writing ../build/sudohead/sudohead.egg-info/PKG-INFO
+[0.649s] writing dependency_links to ../build/sudohead/sudohead.egg-info/dependency_links.txt
+[0.649s] writing entry points to ../build/sudohead/sudohead.egg-info/entry_points.txt
+[0.649s] writing requirements to ../build/sudohead/sudohead.egg-info/requires.txt
+[0.649s] writing top-level names to ../build/sudohead/sudohead.egg-info/top_level.txt
+[0.649s] writing manifest file '../build/sudohead/sudohead.egg-info/SOURCES.txt'
+[0.650s] reading manifest file '../build/sudohead/sudohead.egg-info/SOURCES.txt'
+[0.650s] writing manifest file '../build/sudohead/sudohead.egg-info/SOURCES.txt'
+[0.651s] running build
+[0.651s] running build_py
+[0.651s] creating /home/ri-one/sudohead/build/sudohead/build
+[0.651s] creating /home/ri-one/sudohead/build/sudohead/build/lib
+[0.651s] creating /home/ri-one/sudohead/build/sudohead/build/lib/sudohead
+[0.651s] copying sudohead/__init__.py -> /home/ri-one/sudohead/build/sudohead/build/lib/sudohead
+[0.651s] copying sudohead/HeadNode.py -> /home/ri-one/sudohead/build/sudohead/build/lib/sudohead
+[0.651s] copying sudohead/HeadDriver.py -> /home/ri-one/sudohead/build/sudohead/build/lib/sudohead
+[0.651s] running install
+[0.651s] running install_lib
+[0.651s] creating /home/ri-one/sudohead/install/sudohead/lib/python3.10/site-packages/sudohead
+[0.652s] copying /home/ri-one/sudohead/build/sudohead/build/lib/sudohead/__init__.py -> /home/ri-one/sudohead/install/sudohead/lib/python3.10/site-packages/sudohead
+[0.652s] copying /home/ri-one/sudohead/build/sudohead/build/lib/sudohead/HeadNode.py -> /home/ri-one/sudohead/install/sudohead/lib/python3.10/site-packages/sudohead
+[0.652s] copying /home/ri-one/sudohead/build/sudohead/build/lib/sudohead/HeadDriver.py -> /home/ri-one/sudohead/install/sudohead/lib/python3.10/site-packages/sudohead
+[0.652s] byte-compiling /home/ri-one/sudohead/install/sudohead/lib/python3.10/site-packages/sudohead/__init__.py to __init__.cpython-310.pyc
+[0.652s] byte-compiling /home/ri-one/sudohead/install/sudohead/lib/python3.10/site-packages/sudohead/HeadNode.py to HeadNode.cpython-310.pyc
+[0.652s] byte-compiling /home/ri-one/sudohead/install/sudohead/lib/python3.10/site-packages/sudohead/HeadDriver.py to HeadDriver.cpython-310.pyc
+[0.653s] running install_data
+[0.653s] creating /home/ri-one/sudohead/install/sudohead/share/ament_index
+[0.653s] creating /home/ri-one/sudohead/install/sudohead/share/ament_index/resource_index
+[0.653s] creating /home/ri-one/sudohead/install/sudohead/share/ament_index/resource_index/packages
+[0.653s] copying resource/sudohead -> /home/ri-one/sudohead/install/sudohead/share/ament_index/resource_index/packages
+[0.653s] copying package.xml -> /home/ri-one/sudohead/install/sudohead/share/sudohead
+[0.653s] running install_egg_info
+[0.654s] Copying ../build/sudohead/sudohead.egg-info to /home/ri-one/sudohead/install/sudohead/lib/python3.10/site-packages/sudohead-0.0.0-py3.10.egg-info
+[0.655s] running install_scripts
+[0.669s] Installing sudohead_node script to /home/ri-one/sudohead/install/sudohead/lib/sudohead
+[0.669s] writing list of installed files to '/home/ri-one/sudohead/build/sudohead/install.log'
+[0.685s] Invoked command in '/home/ri-one/sudohead/sudohead' returned '0': PYTHONPATH=/home/ri-one/sudohead/build/sudohead/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/ri-one/sudohead/install/sudohead/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../build/sudohead build --build-base /home/ri-one/sudohead/build/sudohead/build install --record /home/ri-one/sudohead/build/sudohead/install.log --single-version-externally-managed install_data

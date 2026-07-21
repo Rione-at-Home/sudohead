@@ -1,0 +1,38 @@
+running egg_info
+creating ../build/sudohead/sudohead.egg-info
+writing ../build/sudohead/sudohead.egg-info/PKG-INFO
+writing dependency_links to ../build/sudohead/sudohead.egg-info/dependency_links.txt
+writing entry points to ../build/sudohead/sudohead.egg-info/entry_points.txt
+writing requirements to ../build/sudohead/sudohead.egg-info/requires.txt
+writing top-level names to ../build/sudohead/sudohead.egg-info/top_level.txt
+writing manifest file '../build/sudohead/sudohead.egg-info/SOURCES.txt'
+reading manifest file '../build/sudohead/sudohead.egg-info/SOURCES.txt'
+writing manifest file '../build/sudohead/sudohead.egg-info/SOURCES.txt'
+running build
+running build_py
+creating /home/ri-one/sudohead/build/sudohead/build
+creating /home/ri-one/sudohead/build/sudohead/build/lib
+creating /home/ri-one/sudohead/build/sudohead/build/lib/sudohead
+copying sudohead/__init__.py -> /home/ri-one/sudohead/build/sudohead/build/lib/sudohead
+copying sudohead/HeadNode.py -> /home/ri-one/sudohead/build/sudohead/build/lib/sudohead
+copying sudohead/HeadDriver.py -> /home/ri-one/sudohead/build/sudohead/build/lib/sudohead
+running install
+running install_lib
+creating /home/ri-one/sudohead/install/sudohead/lib/python3.10/site-packages/sudohead
+copying /home/ri-one/sudohead/build/sudohead/build/lib/sudohead/__init__.py -> /home/ri-one/sudohead/install/sudohead/lib/python3.10/site-packages/sudohead
+copying /home/ri-one/sudohead/build/sudohead/build/lib/sudohead/HeadNode.py -> /home/ri-one/sudohead/install/sudohead/lib/python3.10/site-packages/sudohead
+copying /home/ri-one/sudohead/build/sudohead/build/lib/sudohead/HeadDriver.py -> /home/ri-one/sudohead/install/sudohead/lib/python3.10/site-packages/sudohead
+byte-compiling /home/ri-one/sudohead/install/sudohead/lib/python3.10/site-packages/sudohead/__init__.py to __init__.cpython-310.pyc
+byte-compiling /home/ri-one/sudohead/install/sudohead/lib/python3.10/site-packages/sudohead/HeadNode.py to HeadNode.cpython-310.pyc
+byte-compiling /home/ri-one/sudohead/install/sudohead/lib/python3.10/site-packages/sudohead/HeadDriver.py to HeadDriver.cpython-310.pyc
+running install_data
+creating /home/ri-one/sudohead/install/sudohead/share/ament_index
+creating /home/ri-one/sudohead/install/sudohead/share/ament_index/resource_index
+creating /home/ri-one/sudohead/install/sudohead/share/ament_index/resource_index/packages
+copying resource/sudohead -> /home/ri-one/sudohead/install/sudohead/share/ament_index/resource_index/packages
+copying package.xml -> /home/ri-one/sudohead/install/sudohead/share/sudohead
+running install_egg_info
+Copying ../build/sudohead/sudohead.egg-info to /home/ri-one/sudohead/install/sudohead/lib/python3.10/site-packages/sudohead-0.0.0-py3.10.egg-info
+running install_scripts
+Installing sudohead_node script to /home/ri-one/sudohead/install/sudohead/lib/sudohead
+writing list of installed files to '/home/ri-one/sudohead/build/sudohead/install.log'

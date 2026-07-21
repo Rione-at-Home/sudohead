@@ -1,0 +1,3 @@
+[console_scripts]
+sudohead_node = sudohead.head_node:main
+
