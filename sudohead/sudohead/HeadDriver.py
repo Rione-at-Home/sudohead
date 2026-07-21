@@ -171,8 +171,8 @@ class DynamixelDriver:
     PAN_MIN = -60
     PAN_MAX = 60
 
-    TILT_MIN = -15
-    TILT_MAX = 20
+    TILT_MIN = -45
+    TILT_MAX = 45
 
     # Pan Control
     def set_pan(self, angle):

@@ -2,7 +2,7 @@
 #
 ## head_node.py
 #
-#  ROS2 node for controlling the pan-tilt mechanism on the cat head. This node
+#  ROS2 node for controlling the pan-tilt mechanism on Sudo. This node
 #  subscribes to target pan and tilt angles from a tracking node and smoothly 
 #  moves the head towards those targets using the DynamixelDriver. This node
 #  acts as the interface between ROS2 and the Dynamixel hardware.
