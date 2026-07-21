@@ -23,8 +23,8 @@ class HeadNode(Node):
         # Dynamixel Driver Initialization
         self.driver = DynamixelDriver()
 
-        self.driver.calibrate_zero()
         self.driver.enable()
+        self.driver.calibrate_zero()
 
         # Current and Target States
         self.current_pan = 0.0
