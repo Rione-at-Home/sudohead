@@ -8,10 +8,11 @@
 #  acts as the interface between ROS2 and the Dynamixel hardware.
 #
 
+from .HeadDriver import DynamixelDriver
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32
-from .dynamixel_driver import DynamixelDriver
+
 
 
 class HeadNode(Node):
@@ -22,8 +23,8 @@ class HeadNode(Node):
         # Dynamixel Driver Initialization
         self.driver = DynamixelDriver()
 
-        self.driver.calibrate_zero()
         self.driver.enable()
+        self.driver.calibrate_zero()
 
         # Current and Target States
         self.current_pan = 0.0
