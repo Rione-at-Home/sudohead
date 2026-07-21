@@ -7,17 +7,17 @@
 from dynamixel_sdk import PortHandler, PacketHandler
 import time
 
-# XL430 Control Table Addresses
-ADDR_TORQUE_ENABLE = 64
-ADDR_GOAL_POSITION = 116
-ADDR_PRESENT_POSITION = 132
+# AX12 Control Table Addresses
+ADDR_TORQUE_ENABLE = 24
+ADDR_GOAL_POSITION = 30
+ADDR_PRESENT_POSITION = 36
 
 TORQUE_ENABLE = 1
 TORQUE_DISABLE = 0
 
-PROTOCOL_VERSION = 2.0
+PROTOCOL_VERSION = 1.0
 
-TICKS_PER_DEGREE = 4095.0 / 360.0
+TICKS_PER_DEGREE = 1023.0 / 300.0
 
 
 class DynamixelDriver:
@@ -47,9 +47,14 @@ class DynamixelDriver:
             )
 
         print(f"Connected to {device_name}")
+        
 
         self.pan_zero = 0
         self.tilt_zero = 0
+
+        print("Pinging motors...")
+        self.ping(self.pan_id)
+        self.ping(self.tilt_id)
 
     # Communication Helpers
     def ping(self, dxl_id):
@@ -111,7 +116,7 @@ class DynamixelDriver:
     def read_position(self, dxl_id):
 
         position, comm_result, error = (
-            self.packet_handler.read4ByteTxRx(
+            self.packet_handler.read2ByteTxRx(
                 self.port_handler,
                 dxl_id,
                 ADDR_PRESENT_POSITION,
@@ -129,7 +134,7 @@ class DynamixelDriver:
     def write_position(self, dxl_id, position):
 
         comm_result, error = (
-            self.packet_handler.write4ByteTxRx(
+            self.packet_handler.write2ByteTxRx(
                 self.port_handler,
                 dxl_id,
                 ADDR_GOAL_POSITION,

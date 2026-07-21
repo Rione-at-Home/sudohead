@@ -64,9 +64,17 @@ class HeadNode(Node):
 
         self.target_pan = msg.data
 
+        self.get_logger().info(
+            f"Received pan target: {self.target_pan}"
+        )
+
     def tilt_callback(self, msg):
 
         self.target_tilt = msg.data
+
+        self.get_logger().info(
+            f"Received tilt target: {self.target_tilt}"
+        )
 
     # Main Control Loop
     def control_loop(self):
