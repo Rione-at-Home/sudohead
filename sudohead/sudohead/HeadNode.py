@@ -8,7 +8,7 @@
 #  acts as the interface between ROS2 and the Dynamixel hardware.
 #
 
-from build.sudohead.build.lib.sudohead.HeadDriver import DynamixelDriver
+from .HeadDriver import DynamixelDriver
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32
