@@ -1,3 +1,4 @@
+
 #
 ## head_node.py
 #
@@ -12,11 +13,14 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32
 
+
+
 class HeadNode(Node):
 
     def __init__(self):
         super().__init__('head_node')
 
+        # Dynamixel Driver Initialization
         self.driver = DynamixelDriver()
 
         self.driver.enable()
@@ -29,24 +33,33 @@ class HeadNode(Node):
         self.target_pan = 0.0
         self.target_tilt = 0.0
 
-        # Current Velocities
-        self.pan_velocity = 0.0
-        self.tilt_velocity = 0.0
-
-        # Control Loop Timing and Limits
         self.control_period = 0.05  
         self.max_velocity = 60.0  # degrees per second
 
-        # Spring Controller Parameters
-        self.k = 25.0  # Spring stiffness
-        self.c = 10.0  # Damping coefficient (2 * sqrt(k) for critically damped)
+        # Pan trajectory
+        self.pan_start = 0.0
+        self.pan_goal = 0.0
+        self.pan_elapsed = 0.0
 
+        # Tilt trajectory
+        self.tilt_start = 0.0
+        self.tilt_goal = 0.0
+        self.tilt_elapsed = 0.0
+
+        # Trajectory duration
+        self.motion_time = 2.0   # seconds
+
+        # Timer period
+        self.control_period = 0.05
+
+        # Subscriptions
         self.create_subscription(
             Float32,
             '/head/pan_target',
             self.pan_callback,
             10
         )
+
 
         self.create_subscription(
             Float32,
@@ -55,85 +68,112 @@ class HeadNode(Node):
             10
         )
 
+        # Control Loop Timer
         self.timer = self.create_timer(
-            self.control_period,
+            0.05,   # 20 Hz
             self.control_loop
         )
 
         self.get_logger().info(
-            "Head node started (Critically Damped Spring Controller)"
+            "Head node started"
         )
 
     # Topic Callbacks
-    def pan_callback(self, msg):
-        self.target_pan = msg.data
+    def pan_callback(self, msg): # create a new trajectory to the new target
+
+        self.pan_start = self.current_pan
+
+        self.pan_goal = msg.data
+
+        self.pan_elapsed = 0.0
 
     def tilt_callback(self, msg):
-        self.target_tilt = msg.data
 
-    # Control Loop
+        self.tilt_start = self.current_tilt
+        
+        self.tilt_goal = msg.data
+
+        self.tilt_elapsed = 0.0
+
+    # Main Control Loop
     def control_loop(self):
-        dt = self.control_period
-
-        # Pan Spring Calculation
-        pan_error = self.target_pan - self.current_pan
-        pan_accel = (self.k * pan_error) - (self.c * self.pan_velocity)
         
-        self.pan_velocity += pan_accel * dt
+        self.pan_elapsed += self.control_period
 
-        self.get_logger().info(
-            f"Target: {self.target_pan:.1f}°, "
-            f"Current: {self.current_pan:.1f}°"
+        pan_s = self.pan_elapsed / self.motion_time
+        pan_s = min(max(pan_s, 0.0), 1.0)
+
+        pan_blend = (
+            6*pan_s**5
+            - 15*pan_s**4
+            + 10*pan_s**3
         )
-        
-        # Clamp maximum pan velocity
-        self.pan_velocity = max(
-            -self.max_velocity, 
-            min(self.max_velocity, self.pan_velocity)
+
+        self.current_pan = (
+            self.pan_start
+            + pan_blend *
+            (
+                self.pan_goal
+                - self.pan_start
+            )
         )
-        
-        self.current_pan += self.pan_velocity * dt
 
-        # Tilt Spring Calculation
-        tilt_error = self.target_tilt - self.current_tilt
-        tilt_accel = (self.k * tilt_error) - (self.c * self.tilt_velocity)
-        
-        # Euler integration for tilt
-        self.tilt_velocity += tilt_accel * dt
-        
-        # Clamp maximum tilt velocity
-        self.tilt_velocity = max(
-            -self.max_velocity, 
-            min(self.max_velocity, self.tilt_velocity)
+        self.tilt_elapsed += self.control_period
+
+        tilt_s = (self.tilt_elapsed / self.motion_time)
+
+        tilt_s = min(max(tilt_s, 0.0), 1.0)
+
+        tilt_blend = (
+            6*tilt_s**5
+            - 15*tilt_s**4
+            + 10*tilt_s**3
         )
-        
-        self.current_tilt += self.tilt_velocity * dt
 
-        # --- Send commands to hardware ---
-        self.driver.set_pan(self.current_pan)
-        self.driver.set_tilt(self.current_tilt)
+        self.current_tilt = (
+            self.tilt_start +
+            tilt_blend *
+            (
+                self.tilt_goal -
+                self.tilt_start
+            )
+        )
+                
+        self.driver.set_pan(
+            self.current_pan
+        )
 
-        
-        
+        self.driver.set_tilt(
+            self.current_tilt
+        )
+
     # Turn off motors and close driver on shutdown
     def destroy_node(self):
+
         self.driver.disable()
         self.driver.close()
+
         super().destroy_node()
 
 
 def main(args=None):
+
     rclpy.init(args=args)
+
     node = HeadNode()
 
     try:
         rclpy.spin(node)
+
     except KeyboardInterrupt:
         pass
+
     finally:
         node.destroy_node()
+
         if rclpy.ok():
             rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()
