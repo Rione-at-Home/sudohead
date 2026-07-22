@@ -26,6 +26,7 @@ setup(
         'console_scripts': [
 
             'head_node = sudohead.HeadNode:main',
+            'head_target_generator = sudohead.head_target_generator:main',
             
         ],
     },
