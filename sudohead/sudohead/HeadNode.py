@@ -80,6 +80,11 @@ class HeadNode(Node):
         pan_accel = (self.k * pan_error) - (self.c * self.pan_velocity)
         
         self.pan_velocity += pan_accel * dt
+
+        self.get_logger().info(
+            f"Target: {self.target_pan:.1f}°, "
+            f"Current: {self.current_pan:.1f}°"
+        )
         
         # Clamp maximum pan velocity
         self.pan_velocity = max(
@@ -107,6 +112,8 @@ class HeadNode(Node):
         # --- Send commands to hardware ---
         self.driver.set_pan(self.current_pan)
         self.driver.set_tilt(self.current_tilt)
+
+        
         
     # Turn off motors and close driver on shutdown
     def destroy_node(self):
