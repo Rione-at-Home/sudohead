@@ -13,6 +13,7 @@ sudohead/HeadDriver.py
 sudohead/HeadNode.py
 sudohead/__init__.py
 sudohead/dynamixel_debug.py
+sudohead/head_target_generator.py
 test/test_copyright.py
 test/test_flake8.py
 test/test_pep257.py
