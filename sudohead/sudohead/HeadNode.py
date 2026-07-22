@@ -98,36 +98,36 @@ class HeadNode(Node):
     # Main Control Loop
     def control_loop(self):
         
-        self.tilt_elapsed += self.control_period
+        self.pan_elapsed += self.control_period
 
-        s = self.tilt_elapsed / self.motion_time
-        s = min(max(s, 0.0), 1.0)
+        pan_s = self.pan_elapsed / self.motion_time
+        pan_s = min(max(pan_s, 0.0), 1.0)
 
         pan_blend = (
-            6*s**5
-            - 15*s**4
-            + 10*s**3
+            6*pan_s**5
+            - 15*pan_s**4
+            + 10*pan_s**3
         )
 
-        self.current_tilt = (
-            self.tilt_start
+        self.current_pan = (
+            self.pan_start
             + pan_blend *
             (
-                self.tilt_goal
-                - self.tilt_start
+                self.pan_goal
+                - self.pan_start
             )
         )
 
         self.tilt_elapsed += self.control_period
 
-        s = (self.tilt_elapsed / self.motion_time)
+        tilt_s = (self.tilt_elapsed / self.motion_time)
 
-        s = min(max(s, 0.0), 1.0)
+        tilt_s = min(max(tilt_s, 0.0), 1.0)
 
         tilt_blend = (
-            6*s**5
-            - 15*s**4
-            + 10*s**3
+            6*tilt_s**5
+            - 15*tilt_s**4
+            + 10*tilt_s**3
         )
 
         self.current_tilt = (
