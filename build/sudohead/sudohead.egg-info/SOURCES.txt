@@ -14,6 +14,8 @@ sudohead/HeadNode.py
 sudohead/__init__.py
 sudohead/dynamixel_debug.py
 sudohead/head_target_generator.py
+sudohead/prelog_HeadNode.py
+sudohead/prelog_head_target_generator.py
 sudohead/spring_controller.py
 test/test_copyright.py
 test/test_flake8.py
