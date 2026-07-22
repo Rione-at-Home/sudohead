@@ -98,7 +98,7 @@ class HeadNode(Node):
     # Update Target method
     def update_target(self):
 
-        alpha = 0.3
+        alpha = 0.2
 
         self.filtered_pan += alpha * (
             self.raw_pan - self.filtered_pan
