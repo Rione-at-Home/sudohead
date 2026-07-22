@@ -26,6 +26,10 @@ class HeadNode(Node):
         self.driver.enable()
         self.driver.calibrate_zero()
 
+        # Raw Input States
+        self.raw_pan = 0.0
+        self.raw_tilt = 0.0
+
         # Current and Target States
         self.current_pan = 0.0
         self.current_tilt = 0.0
@@ -51,6 +55,10 @@ class HeadNode(Node):
 
         # Timer period
         self.control_period = 0.05
+
+        # Filtered Output
+        self.filtered_pan = 0.0
+        self.filtered_tilt = 0.0
 
         # Subscriptions
         self.create_subscription(
@@ -79,24 +87,61 @@ class HeadNode(Node):
         )
 
     # Topic Callbacks
-    def pan_callback(self, msg): # create a new trajectory to the new target
+    def pan_callback(self, msg):
 
-        self.pan_start = self.current_pan
-
-        self.pan_goal = msg.data
-
-        self.pan_elapsed = 0.0
+        self.raw_pan = msg.data
 
     def tilt_callback(self, msg):
 
-        self.tilt_start = self.current_tilt
-        
-        self.tilt_goal = msg.data
+        self.raw_tilt = msg.data
 
-        self.tilt_elapsed = 0.0
+    # Update Target method
+    def update_target(self):
+
+        alpha = 0.2
+
+        self.filtered_pan += alpha * (
+            self.raw_pan - self.filtered_pan
+        )
+
+        self.filtered_tilt += alpha * (
+            self.raw_tilt - self.filtered_tilt
+        )
+
+        if abs(self.filtered_pan - self.pan_goal) > 0.5:
+            self.pan_start = self.current_pan
+            self.pan_goal = self.filtered_pan
+            self.pan_elapsed = 0.0
+
+        if abs(self.filtered_tilt - self.tilt_goal) > 0.5:
+            self.tilt_start = self.current_tilt
+            self.tilt_goal = self.filtered_tilt
+            self.tilt_elapsed = 0.0
 
     # Main Control Loop
     def control_loop(self):
+
+        self.get_logger().info(
+            f"Raw Pan: {self.raw_pan:.1f}°, "
+            f"Raw Tilt: {self.raw_tilt:.1f}°"
+        )
+
+        self.get_logger().info(
+            f"Filtered Pan: {self.filtered_pan:.1f}°, "
+            f"Filtered Tilt: {self.filtered_tilt:.1f}°"
+        )
+
+        self.get_logger().info(
+            f"Current Pan: {self.current_pan:.1f}°, "
+            f"Current Tilt: {self.current_tilt:.1f}°"
+        )
+
+        self.get_logger().info(
+            f"Target Pan: {self.pan_goal:.1f}°, "
+            f"Target Tilt: {self.tilt_goal:.1f}°"
+        )
+
+        self.update_target()
         
         self.pan_elapsed += self.control_period
 
