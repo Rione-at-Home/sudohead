@@ -3,14 +3,14 @@
 #
 #  ROS2 test node for evaluating pan-tilt motion controllers.
 #  Publishes deterministic and stochastic target trajectories on
-#  /head/pan_target and /head/tilt_target.
+#  /head/pan_target and /head/tilt_target, along with active mode on /head/mode.
 #
 
 import math
 import random
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32, String
 
 
 class HeadTargetGenerator(Node):
@@ -21,17 +21,9 @@ class HeadTargetGenerator(Node):
         self.declare_parameter("mode", "step")
 
         # Publishers
-        self.pan_pub = self.create_publisher(
-            Float32,
-            "/head/pan_target",
-            10
-        )
-
-        self.tilt_pub = self.create_publisher(
-            Float32,
-            "/head/tilt_target",
-            10
-        )
+        self.pan_pub = self.create_publisher(Float32, "/head/pan_target", 10)
+        self.tilt_pub = self.create_publisher(Float32, "/head/tilt_target", 10)
+        self.mode_pub = self.create_publisher(String, "/head/mode", 10)
 
         # State and timing variables
         self.dt = 0.05  # 20 Hz
@@ -41,10 +33,7 @@ class HeadTargetGenerator(Node):
         self.tilt = 0.0
 
         # Control Loop Timer
-        self.timer = self.create_timer(
-            self.dt,
-            self.timer_callback
-        )
+        self.timer = self.create_timer(self.dt, self.timer_callback)
 
         current_mode = self.get_parameter("mode").get_parameter_value().string_value
         self.get_logger().info(f"Target generator started in mode: '{current_mode}'")
@@ -58,39 +47,30 @@ class HeadTargetGenerator(Node):
 
         if mode == "step":
             self.step_motion()
-
         elif mode == "ramp":
             self.ramp_motion()
-
         elif mode == "sine":
             self.sine_motion()
-
         elif mode == "random":
             self.random_motion()
-
         elif mode == "noise":
             self.noise_motion()
-
         else:
             self.get_logger().warn(f"Unknown mode '{mode}'. Holding at 0°.", once=True)
             self.pan = 0.0
             self.tilt = 0.0
 
-        self.publish_targets()
+        self.publish_targets(mode)
 
     # Motion Patterns
     def step_motion(self):
         """Tests overshoot and settling time across large jumps."""
-
         if self.time < 3.0:
             self.pan = 0.0
-
         elif self.time < 6.0:
             self.pan = 60.0
-
         elif self.time < 9.0:
             self.pan = -60.0
-
         else:
             self.time = 0.0
             self.pan = 0.0
@@ -100,10 +80,8 @@ class HeadTargetGenerator(Node):
     def ramp_motion(self):
         """Tests constant-velocity tracking and lag."""
         self.pan += 0.5
-
         if self.pan > 60.0:
             self.pan = -60.0
-
         self.tilt = 0.0
 
     def sine_motion(self):
@@ -123,31 +101,31 @@ class HeadTargetGenerator(Node):
         self.tilt = 0.0
 
     # Publisher Helper
-    def publish_targets(self):
+    def publish_targets(self, current_mode: str):
         pan_msg = Float32()
         pan_msg.data = float(self.pan)
 
         tilt_msg = Float32()
         tilt_msg.data = float(self.tilt)
 
+        mode_msg = String()
+        mode_msg.data = current_mode
+
         self.pan_pub.publish(pan_msg)
         self.tilt_pub.publish(tilt_msg)
+        self.mode_pub.publish(mode_msg)
 
 
 def main(args=None):
     rclpy.init(args=args)
-
     node = HeadTargetGenerator()
 
     try:
         rclpy.spin(node)
-
     except KeyboardInterrupt:
         pass
-
     finally:
         node.destroy_node()
-
         if rclpy.ok():
             rclpy.shutdown()
 
