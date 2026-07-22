@@ -105,8 +105,11 @@ class HeadNode(Node):
         s = min(max(s, 0.0), 1.0)
 
         blend = (
-            3*s*s -
-            2*s*s*s
+            6*s**5
+            -
+            15*s**4
+            +
+            10*s**3
         )
 
         self.current_pan = (
@@ -123,11 +126,6 @@ class HeadNode(Node):
         s = (self.tilt_elapsed / self.motion_time)
 
         s = min(max(s, 0.0), 1.0)
-
-        blend = (
-            3*s*s -
-            2*s*s*s
-        )
 
         self.current_tilt = (
             self.tilt_start +
