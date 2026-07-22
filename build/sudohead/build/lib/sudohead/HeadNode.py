@@ -13,6 +13,8 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32
 
+from scipy.interpolate import CubicSpline
+
 
 
 class HeadNode(Node):
@@ -52,6 +54,9 @@ class HeadNode(Node):
         # Timer period
         self.control_period = 0.05
 
+        self.pan_spline = None
+        self.tilt_spline = None
+
         # Subscriptions
         self.create_subscription(
             Float32,
@@ -79,74 +84,59 @@ class HeadNode(Node):
         )
 
     # Topic Callbacks
-    def pan_callback(self, msg): # create a new trajectory to the new target
+    def pan_callback(self, msg):
 
         self.pan_start = self.current_pan
-
         self.pan_goal = msg.data
-
         self.pan_elapsed = 0.0
+
+        self.pan_spline = CubicSpline(
+            [0.0, self.motion_time],
+            [self.pan_start, self.pan_goal],
+            bc_type="clamped"
+        )
 
     def tilt_callback(self, msg):
 
         self.tilt_start = self.current_tilt
-        
         self.tilt_goal = msg.data
-
         self.tilt_elapsed = 0.0
+
+        self.tilt_spline = CubicSpline(
+            [0.0, self.motion_time],
+            [self.tilt_start, self.tilt_goal],
+            bc_type="clamped"
+        )
 
     # Main Control Loop
     def control_loop(self):
-        
+
         self.pan_elapsed += self.control_period
-
-        pan_s = self.pan_elapsed / self.motion_time
-        pan_s = min(max(pan_s, 0.0), 1.0)
-
-        pan_blend = (
-            6*pan_s**5
-            - 15*pan_s**4
-            + 10*pan_s**3
-        )
-
-        self.current_pan = (
-            self.pan_start
-            + pan_blend *
-            (
-                self.pan_goal
-                - self.pan_start
-            )
-        )
-
         self.tilt_elapsed += self.control_period
 
-        tilt_s = (self.tilt_elapsed / self.motion_time)
-
-        tilt_s = min(max(tilt_s, 0.0), 1.0)
-
-        tilt_blend = (
-            6*tilt_s**5
-            - 15*tilt_s**4
-            + 10*tilt_s**3
+        self.pan_elapsed = min(
+            self.pan_elapsed,
+            self.motion_time
         )
 
-        self.current_tilt = (
-            self.tilt_start +
-            tilt_blend *
-            (
-                self.tilt_goal -
-                self.tilt_start
+        self.tilt_elapsed = min(
+            self.tilt_elapsed,
+            self.motion_time
+        )
+
+        if self.pan_spline is not None:
+            self.current_pan = float(
+                self.pan_spline(self.pan_elapsed)
             )
-        )
-                
-        self.driver.set_pan(
-            self.current_pan
-        )
 
-        self.driver.set_tilt(
-            self.current_tilt
-        )
+        if self.tilt_spline is not None:
+            self.current_tilt = float(
+                self.tilt_spline(self.tilt_elapsed)
+            )
 
+        self.driver.set_pan(self.current_pan)
+        self.driver.set_tilt(self.current_tilt)
+        
     # Turn off motors and close driver on shutdown
     def destroy_node(self):
 
