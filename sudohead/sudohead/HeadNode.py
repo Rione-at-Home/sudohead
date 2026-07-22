@@ -33,6 +33,9 @@ class HeadNode(Node):
         self.target_pan = 0.0
         self.target_tilt = 0.0
 
+        self.control_period = 0.05  
+        self.max_velocity = 60.0  # degrees per second
+
         # Subscriptions
         self.create_subscription(
             Float32,
@@ -78,18 +81,50 @@ class HeadNode(Node):
 
     # Main Control Loop
     def control_loop(self):
+        
+        # Exponential smoothing
+        #alpha = 0.15
+        #
+        #self.current_pan += (self.target_pan - self.current_pan) * alpha
+        #
+        #self.current_tilt += (self.target_tilt - self.current_tilt) * alpha
+        #
+        #Linear Velocity Smoothing
+        max_step = (
+            self.max_velocity *
+            self.control_period
+        )
 
-        alpha = 0.15
 
-        self.current_pan += (
-            self.target_pan -
-            self.current_pan
-        ) * alpha
+        # PAN
+        pan_error = self.target_pan - self.current_pan
 
-        self.current_tilt += (
-            self.target_tilt -
-            self.current_tilt
-        ) * alpha
+        if abs(pan_error) <= max_step: # if the target is within one step, just set it directly
+
+            self.current_pan = self.target_pan 
+
+        else: # move towards the target by one step in the correct direction
+            
+            self.current_pan += (
+                max_step *
+                (1 if pan_error > 0 else -1)
+            )
+
+
+        # TILT
+        tilt_error = (self.target_tilt - self.current_tilt)
+
+        if abs(tilt_error) <= max_step:
+
+            self.current_tilt = self.target_tilt
+
+        else:
+
+            self.current_tilt += (
+                max_step
+                if tilt_error > 0
+                else -max_step
+            )
 
         self.driver.set_pan(
             self.current_pan
