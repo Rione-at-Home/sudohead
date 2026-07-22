@@ -36,6 +36,22 @@ class HeadNode(Node):
         self.control_period = 0.05  
         self.max_velocity = 60.0  # degrees per second
 
+        # Pan trajectory
+        self.pan_start = 0.0
+        self.pan_goal = 0.0
+        self.pan_elapsed = 0.0
+
+        # Tilt trajectory
+        self.tilt_start = 0.0
+        self.tilt_goal = 0.0
+        self.tilt_elapsed = 0.0
+
+        # Trajectory duration
+        self.motion_time = 1.0    # seconds
+
+        # Timer period
+        self.control_period = 0.05
+
         # Subscriptions
         self.create_subscription(
             Float32,
@@ -63,69 +79,65 @@ class HeadNode(Node):
         )
 
     # Topic Callbacks
-    def pan_callback(self, msg):
+    def pan_callback(self, msg): # create a new trajectory to the new target
 
-        self.target_pan = msg.data
+        self.pan_start = self.current_pan
 
-        self.get_logger().info(
-            f"Received pan target: {self.target_pan}"
-        )
+        self.pan_goal = msg.data
+
+        self.pan_elapsed = 0.0
 
     def tilt_callback(self, msg):
 
-        self.target_tilt = msg.data
+        self.tilt_start = self.current_tilt
+        
+        self.tilt_goal = msg.data
 
-        self.get_logger().info(
-            f"Received tilt target: {self.target_tilt}"
-        )
+        self.tilt_elapsed = 0.0
 
     # Main Control Loop
     def control_loop(self):
         
-        # Exponential smoothing
-        #alpha = 0.15
-        #
-        #self.current_pan += (self.target_pan - self.current_pan) * alpha
-        #
-        #self.current_tilt += (self.target_tilt - self.current_tilt) * alpha
-        #
-        #Linear Velocity Smoothing
-        max_step = (
-            self.max_velocity *
-            self.control_period
+        self.pan_elapsed += self.control_period
+
+        s = (self.pan_elapsed /self.motion_time) #
+
+        s = min(max(s, 0.0), 1.0)
+
+        blend = (
+            3*s*s -
+            2*s*s*s
         )
 
-
-        # PAN
-        pan_error = self.target_pan - self.current_pan
-
-        if abs(pan_error) <= max_step: # if the target is within one step, just set it directly
-
-            self.current_pan = self.target_pan 
-
-        else: # move towards the target by one step in the correct direction
-            
-            self.current_pan += (
-                max_step *
-                (1 if pan_error > 0 else -1)
+        self.current_pan = (
+            self.pan_start +
+            blend *
+            (
+                self.pan_goal -
+                self.pan_start
             )
+        )
 
+        self.tilt_elapsed += self.control_period
 
-        # TILT
-        tilt_error = (self.target_tilt - self.current_tilt)
+        s = (self.tilt_elapsed / self.motion_time)
 
-        if abs(tilt_error) <= max_step:
+        s = min(max(s, 0.0), 1.0)
 
-            self.current_tilt = self.target_tilt
+        blend = (
+            3*s*s -
+            2*s*s*s
+        )
 
-        else:
-
-            self.current_tilt += (
-                max_step
-                if tilt_error > 0
-                else -max_step
+        self.current_tilt = (
+            self.tilt_start +
+            blend *
+            (
+                self.tilt_goal -
+                self.tilt_start
             )
-
+        )
+                
         self.driver.set_pan(
             self.current_pan
         )
