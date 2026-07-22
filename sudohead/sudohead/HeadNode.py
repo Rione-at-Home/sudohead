@@ -47,7 +47,7 @@ class HeadNode(Node):
         self.tilt_elapsed = 0.0
 
         # Trajectory duration
-        self.motion_time = 2.0   # seconds
+        self.motion_time = 2.5   # seconds
 
         # Timer period
         self.control_period = 0.05
