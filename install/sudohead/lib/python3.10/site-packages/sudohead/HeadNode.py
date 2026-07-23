@@ -14,7 +14,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32, String
 
-from .filters import EMAFilter, KalmanFilter1D, PassThroughFilter
+from .filters import EMAFilter, KalmanFilter1D, OneEuroFilter, PassThroughFilter
 from .HeadDriver import DynamixelDriver
 
 
@@ -26,10 +26,13 @@ class HeadNode(Node):
         # --- Benchmarking & Param Config ---
         self.declare_parameter("controller_name", "")
         self.declare_parameter("output_dir", "results")
-        self.declare_parameter("filter_type", "KALMAN")  # EMA, KALMAN, or NONE
-        self.declare_parameter("alpha", 0.05)            # EMA Parameter
-        self.declare_parameter("process_noise", 0.05)    # Kalman Q
-        self.declare_parameter("measurement_noise", 2.0) # Kalman R
+        self.declare_parameter("filter_type", "ONEEURO")  # EMA, KALMAN, ONEEURO, or NONE
+        self.declare_parameter("alpha", 0.05)             # EMA Parameter
+        self.declare_parameter("process_noise", 0.05)     # Kalman Q
+        self.declare_parameter("measurement_noise", 2.0)  # Kalman R
+        self.declare_parameter("min_cutoff", 1.0)         # 1€ fc_min
+        self.declare_parameter("beta", 0.05)              # 1€ beta
+        self.declare_parameter("d_cutoff", 1.0)           # 1€ d_cutoff
         self.declare_parameter("motion_profile", "quintic")
         self.declare_parameter("motion_time", 2.5)
 
@@ -39,13 +42,42 @@ class HeadNode(Node):
         self.alpha = self.get_parameter("alpha").get_parameter_value().double_value
         self.process_noise = self.get_parameter("process_noise").get_parameter_value().double_value
         self.measurement_noise = self.get_parameter("measurement_noise").get_parameter_value().double_value
+        self.min_cutoff = self.get_parameter("min_cutoff").get_parameter_value().double_value
+        self.beta = self.get_parameter("beta").get_parameter_value().double_value
+        self.d_cutoff = self.get_parameter("d_cutoff").get_parameter_value().double_value
         self.motion_profile = self.get_parameter("motion_profile").get_parameter_value().string_value
         self.motion_time = self.get_parameter("motion_time").get_parameter_value().double_value
 
+        self.control_period = 0.05  # 20 Hz
+
         # --- Filter Instantiation & Folder Naming ---
-        if self.filter_type == "KALMAN":
-            self.pan_filter = KalmanFilter1D(process_noise=self.process_noise, measurement_noise=self.measurement_noise)
-            self.tilt_filter = KalmanFilter1D(process_noise=self.process_noise, measurement_noise=self.measurement_noise)
+        if self.filter_type == "ONEEURO":
+            self.pan_filter = OneEuroFilter(
+                dt=self.control_period,
+                min_cutoff=self.min_cutoff,
+                beta=self.beta,
+                d_cutoff=self.d_cutoff,
+            )
+            self.tilt_filter = OneEuroFilter(
+                dt=self.control_period,
+                min_cutoff=self.min_cutoff,
+                beta=self.beta,
+                d_cutoff=self.d_cutoff,
+            )
+            fc_str = str(self.min_cutoff).replace(".", "")
+            beta_str = str(self.beta).replace(".", "")
+            d_str = str(self.d_cutoff).replace(".", "")
+            auto_name = f"oneeuro_fc{fc_str}_b{beta_str}_d{d_str}"
+
+        elif self.filter_type == "KALMAN":
+            self.pan_filter = KalmanFilter1D(
+                process_noise=self.process_noise,
+                measurement_noise=self.measurement_noise,
+            )
+            self.tilt_filter = KalmanFilter1D(
+                process_noise=self.process_noise,
+                measurement_noise=self.measurement_noise,
+            )
             q_str = str(self.process_noise).replace(".", "")
             r_str = str(self.measurement_noise).replace(".", "")
             auto_name = f"kalman_q{q_str}_r{r_str}"
@@ -61,7 +93,7 @@ class HeadNode(Node):
             self.tilt_filter = PassThroughFilter()
             auto_name = "passthrough"
 
-        # Folder determination
+        # Directory path determination
         self.controller_name = custom_controller_name if custom_controller_name else auto_name
         self.target_dir = os.path.join(self.output_dir, self.controller_name)
         os.makedirs(self.target_dir, exist_ok=True)
@@ -86,8 +118,6 @@ class HeadNode(Node):
         self.pan_elapsed = 0.0
         self.tilt_start = 0.0
         self.tilt_elapsed = 0.0
-
-        self.control_period = 0.05  # 20 Hz
 
         # --- Logging State ---
         self.current_mode = ""
@@ -130,11 +160,14 @@ class HeadNode(Node):
         self.csv_writer.writerow([f"# filter_type={self.filter_type}"])
         if self.filter_type == "EMA":
             self.csv_writer.writerow([f"# alpha={self.alpha}"])
-            
         elif self.filter_type == "KALMAN":
             self.csv_writer.writerow([f"# process_noise_Q={self.process_noise}"])
             self.csv_writer.writerow([f"# measurement_noise_R={self.measurement_noise}"])
-            
+        elif self.filter_type == "ONEEURO":
+            self.csv_writer.writerow([f"# min_cutoff={self.min_cutoff}"])
+            self.csv_writer.writerow([f"# beta={self.beta}"])
+            self.csv_writer.writerow([f"# d_cutoff={self.d_cutoff}"])
+
         self.csv_writer.writerow([f"# motion_profile={self.motion_profile}"])
         self.csv_writer.writerow([f"# motion_time={self.motion_time}"])
 
@@ -158,7 +191,6 @@ class HeadNode(Node):
                 self.get_logger().info(f"Saved and closed log for mode: '{self.current_mode}'")
 
     def update_target(self):
-
         """Applies filter to raw targets and updates quintic trajectory goals."""
         self.filtered_pan = self.pan_filter.update(self.raw_pan)
         self.filtered_tilt = self.tilt_filter.update(self.raw_tilt)
@@ -210,7 +242,6 @@ class HeadNode(Node):
             self.csv_file.flush()
 
     def destroy_node(self):
-
         self.close_current_log()
 
         try:
