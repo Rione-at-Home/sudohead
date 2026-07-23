@@ -13,6 +13,7 @@ sudohead/HeadDriver.py
 sudohead/HeadNode.py
 sudohead/__init__.py
 sudohead/dynamixel_debug.py
+sudohead/filters.py
 sudohead/head_target_generator.py
 sudohead/prelog_HeadNode.py
 sudohead/prelog_head_target_generator.py

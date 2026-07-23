@@ -14,6 +14,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32, String
 
+from .filters import EMAFilter, KalmanFilter1D, PassThroughFilter
 from .HeadDriver import DynamixelDriver
 
 
@@ -23,29 +24,45 @@ class HeadNode(Node):
         super().__init__("head_node")
 
         # --- Benchmarking & Param Config ---
-        # Leave controller_name blank ("") by default so it auto-generates from alpha/filter
         self.declare_parameter("controller_name", "")
         self.declare_parameter("output_dir", "results")
-        self.declare_parameter("filter_type", "EMA")
-        self.declare_parameter("alpha", 0.05)
+        self.declare_parameter("filter_type", "KALMAN")  # EMA, KALMAN, or NONE
+        self.declare_parameter("alpha", 0.05)            # EMA Parameter
+        self.declare_parameter("process_noise", 0.05)    # Kalman Q
+        self.declare_parameter("measurement_noise", 2.0) # Kalman R
         self.declare_parameter("motion_profile", "quintic")
         self.declare_parameter("motion_time", 2.5)
 
         custom_controller_name = self.get_parameter("controller_name").get_parameter_value().string_value
         self.output_dir = self.get_parameter("output_dir").get_parameter_value().string_value
-        self.filter_type = self.get_parameter("filter_type").get_parameter_value().string_value
+        self.filter_type = self.get_parameter("filter_type").get_parameter_value().string_value.upper()
         self.alpha = self.get_parameter("alpha").get_parameter_value().double_value
+        self.process_noise = self.get_parameter("process_noise").get_parameter_value().double_value
+        self.measurement_noise = self.get_parameter("measurement_noise").get_parameter_value().double_value
         self.motion_profile = self.get_parameter("motion_profile").get_parameter_value().string_value
         self.motion_time = self.get_parameter("motion_time").get_parameter_value().double_value
 
-        # Auto-generate folder name if no explicit custom controller_name was provided
-        if custom_controller_name:
-            self.controller_name = custom_controller_name
-        else:
-            alpha_str = str(self.alpha).replace(".", "")
-            self.controller_name = f"{self.filter_type.lower()}_alpha{alpha_str}"
+        # --- Filter Instantiation & Folder Naming ---
+        if self.filter_type == "KALMAN":
+            self.pan_filter = KalmanFilter1D(process_noise=self.process_noise, measurement_noise=self.measurement_noise)
+            self.tilt_filter = KalmanFilter1D(process_noise=self.process_noise, measurement_noise=self.measurement_noise)
+            q_str = str(self.process_noise).replace(".", "")
+            r_str = str(self.measurement_noise).replace(".", "")
+            auto_name = f"kalman_q{q_str}_r{r_str}"
 
-        # Create output directory: results/<controller_name>/
+        elif self.filter_type == "EMA":
+            self.pan_filter = EMAFilter(alpha=self.alpha)
+            self.tilt_filter = EMAFilter(alpha=self.alpha)
+            alpha_str = str(self.alpha).replace(".", "")
+            auto_name = f"ema_alpha{alpha_str}"
+
+        else:
+            self.pan_filter = PassThroughFilter()
+            self.tilt_filter = PassThroughFilter()
+            auto_name = "passthrough"
+
+        # Folder determination
+        self.controller_name = custom_controller_name if custom_controller_name else auto_name
         self.target_dir = os.path.join(self.output_dir, self.controller_name)
         os.makedirs(self.target_dir, exist_ok=True)
 
@@ -85,7 +102,7 @@ class HeadNode(Node):
 
         # --- Control Loop Timer (20 Hz) ---
         self.timer = self.create_timer(self.control_period, self.control_loop)
-        self.get_logger().info(f"Head node ready. Writing logs to: {self.target_dir}/")
+        self.get_logger().info(f"Head node ready ({self.filter_type} filter). Writing logs to: {self.target_dir}/")
 
     def pan_cb(self, msg: Float32):
         self.raw_pan = msg.data
@@ -110,8 +127,14 @@ class HeadNode(Node):
 
         # Embedded Metadata Headers
         self.csv_writer.writerow([f"# controller={self.controller_name}"])
-        self.csv_writer.writerow([f"# filter={self.filter_type}"])
-        self.csv_writer.writerow([f"# alpha={self.alpha}"])
+        self.csv_writer.writerow([f"# filter_type={self.filter_type}"])
+        if self.filter_type == "EMA":
+            self.csv_writer.writerow([f"# alpha={self.alpha}"])
+            
+        elif self.filter_type == "KALMAN":
+            self.csv_writer.writerow([f"# process_noise_Q={self.process_noise}"])
+            self.csv_writer.writerow([f"# measurement_noise_R={self.measurement_noise}"])
+            
         self.csv_writer.writerow([f"# motion_profile={self.motion_profile}"])
         self.csv_writer.writerow([f"# motion_time={self.motion_time}"])
 
@@ -130,13 +153,15 @@ class HeadNode(Node):
             self.csv_file.flush()
             self.csv_file.close()
             self.csv_file = None
+
             if rclpy.ok():
                 self.get_logger().info(f"Saved and closed log for mode: '{self.current_mode}'")
 
     def update_target(self):
+
         """Applies filter to raw targets and updates quintic trajectory goals."""
-        self.filtered_pan += self.alpha * (self.raw_pan - self.filtered_pan)
-        self.filtered_tilt += self.alpha * (self.raw_tilt - self.filtered_tilt)
+        self.filtered_pan = self.pan_filter.update(self.raw_pan)
+        self.filtered_tilt = self.tilt_filter.update(self.raw_tilt)
 
         if abs(self.filtered_pan - self.pan_goal) > 0.5:
             self.pan_start = self.current_pan
@@ -185,6 +210,7 @@ class HeadNode(Node):
             self.csv_file.flush()
 
     def destroy_node(self):
+
         self.close_current_log()
 
         try:
@@ -192,6 +218,7 @@ class HeadNode(Node):
             self.driver.close()
             if rclpy.ok():
                 self.get_logger().info("Dynamixel driver safely disabled and closed.")
+
         except Exception as e:
             if rclpy.ok():
                 self.get_logger().error(f"Error shutting down Dynamixel driver: {e}")
@@ -205,8 +232,10 @@ def main(args=None):
 
     try:
         rclpy.spin(node)
+
     except KeyboardInterrupt:
         pass
+
     finally:
         node.destroy_node()
         if rclpy.ok():
