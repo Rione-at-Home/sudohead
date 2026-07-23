@@ -1,3 +1,4 @@
+
 #
 ## head_node.py
 #
@@ -13,7 +14,7 @@ import time
 from .HeadDriver import DynamixelDriver
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32, String
+from std_msgs.msg import Float32
 
 
 class HeadNode(Node):
@@ -59,13 +60,6 @@ class HeadNode(Node):
             10
         )
 
-        self.create_subscription(
-            String,
-            '/head/mode',
-            self.mode_callback,
-            10
-        )
-
         # Control Loop Timer
         self.timer = self.create_timer(
             self.control_period,
@@ -74,30 +68,19 @@ class HeadNode(Node):
 
         # --- Logging State ---
         self.is_logging = False
-        self.active_mode = None
         self.log_file = None
         self.csv_writer = None
         self.start_time = None
 
-        self.get_logger().info("Head node initialized. Waiting for /head/mode topic to begin logging...")
+        self.get_logger().info("Head node initialized. Waiting for target motion to begin logging...")
 
-    def mode_callback(self, msg):
-        new_mode = msg.data.lower().strip()
-
-        # Switch log files if mode changes
-        if new_mode != self.active_mode:
-            self.switch_log_file(new_mode)
-
-    def switch_log_file(self, mode_name: str):
-        """Closes old CSV and initializes a new mode-specific log file."""
-        if self.log_file and not self.log_file.closed:
-            self.log_file.close()
-
-        self.active_mode = mode_name
-        self.start_time = time.time()
+    def start_logging(self):
+        """
+        Helper to lazy-initialize the CSV log on the first motion trigger.
+        """
         
-        filename = f"head_log_{mode_name}.csv"
-        self.log_file = open(filename, "w", newline="")
+        self.start_time = time.time()
+        self.log_file = open("head_controller_log.csv", "w", newline="")
         self.csv_writer = csv.writer(self.log_file)
 
         self.csv_writer.writerow([
@@ -113,9 +96,8 @@ class HeadNode(Node):
             "current_tilt",
             "measured_tilt"
         ])
-
         self.is_logging = True
-        self.get_logger().info(f"Switched mode to '{mode_name}'. Logging to '{filename}'")
+        self.get_logger().info("Target motion detected! CSV logging started.")
 
     def pan_callback(self, msg):
         self.raw_pan = msg.data
@@ -140,6 +122,10 @@ class HeadNode(Node):
             self.tilt_elapsed = 0.0
 
     def control_loop(self):
+        # Trigger check: Start logging automatically when targets leave zero
+        if not self.is_logging and (abs(self.raw_pan) > 0.1 or abs(self.raw_tilt) > 0.1):
+            self.start_logging()
+
         # Update targets and trajectories
         self.update_target()
         
@@ -161,7 +147,7 @@ class HeadNode(Node):
         measured_pan = self.driver.get_pan()
         measured_tilt = self.driver.get_tilt()
 
-        # Write to log ONLY if active mode is set
+        # Write to log ONLY if recording has been triggered
         if self.is_logging:
             t = time.time() - self.start_time
 
@@ -181,7 +167,7 @@ class HeadNode(Node):
             self.log_file.flush()
 
     def destroy_node(self):
-        if self.log_file and not self.log_file.closed:
+        if self.is_logging and self.log_file and not self.log_file.closed:
             self.log_file.close()
 
         self.driver.disable()
