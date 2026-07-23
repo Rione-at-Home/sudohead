@@ -26,7 +26,7 @@ class HeadNode(Node):
         self.declare_parameter("controller_name", "ema_alpha02")
         self.declare_parameter("output_dir", "results")
         self.declare_parameter("filter_type", "EMA")
-        self.declare_parameter("alpha", 0.2)
+        self.declare_parameter("alpha", 0.05)
         self.declare_parameter("motion_profile", "quintic")
         self.declare_parameter("motion_time", 2.5)
 
