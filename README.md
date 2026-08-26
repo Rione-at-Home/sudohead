@@ -1,6 +1,6 @@
 # sudohead
 
-ROS 2 package for controlling **Sudo's 2-DOF pan-tilt head** using Dynamixel AX-12A servos. The package provides a low-level hardware driver for communicating with Dynamixel servos, continuous target signal filtering via an adaptive One Euro Filter in the node execution loop, quintic polynomial trajectory motion profiling, and empirical benchmarking derived from offline Jupyter telemetry notebooks.
+This is the old version. ROS 2 package for controlling **Sudo's 2-DOF pan-tilt head** using Dynamixel AX-12A servos. The package provides a low-level hardware driver for communicating with Dynamixel servos, continuous target signal filtering via an adaptive One Euro Filter in the node execution loop, quintic polynomial trajectory motion profiling, and empirical benchmarking derived from offline Jupyter telemetry notebooks.
 
 ---
 
