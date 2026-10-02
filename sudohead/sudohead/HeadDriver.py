@@ -24,7 +24,7 @@ class DynamixelDriver:
 
     def __init__(
         self,
-        device_name="/dev/ttyACM0",
+        device_name="/dev/ttyUSB0",
         baudrate=1000000,
         pan_id=54,
         tilt_id=55,
