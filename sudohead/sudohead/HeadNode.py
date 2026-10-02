@@ -5,6 +5,7 @@
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32
+from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 
 from .filters import OneEuroFilter
 from .HeadDriver import DynamixelDriver
@@ -67,6 +68,15 @@ class HeadNode(Node):
 
         self.create_subscription(Float32, "/head/pan_target", self.pan_cb, 10)
         self.create_subscription(Float32, "/head/tilt_target", self.tilt_cb, 10)
+        self.health_pub = self.create_publisher(
+           DiagnosticArray,
+           "/head_health_status",
+           10
+        )
+        self.health_timer = self.create_timer(
+          5.0,
+          self.check_health
+        )
 
         self.timer = self.create_timer(self.control_period, self.control_loop)
         self.get_logger().info(
@@ -97,6 +107,73 @@ class HeadNode(Node):
             self.tilt_goal = self.filtered_tilt
             self.tilt_elapsed = 0.0
 
+    def build_motor_diagnostic(self, name, health):
+
+        status = DiagnosticStatus()
+        status.name = name
+        status.hardware_id = str(health["id"])
+
+        if health["ok"]:
+            status.level = DiagnosticStatus.OK
+            status.message = "Motor communication healthy"
+        else:
+            status.level = DiagnosticStatus.ERROR
+            status.message = "Motor communication failure"
+
+        status.values = [
+            KeyValue(
+                key="id",
+                value=str(health["id"])
+            ),
+            KeyValue(
+                key="ping_ok",
+                value=str(health["ping_ok"])
+            ),
+            KeyValue(
+                key="position_read_ok",
+                value=str(health["position_read_ok"])
+            ),
+            KeyValue(
+                key="position",
+                value=str(health["position"])
+            ),
+            KeyValue(
+                key="comm_result",
+                value=str(health["comm_result"])
+            ),
+            KeyValue(
+                key="error",
+                value=str(health["error"])
+            ),
+        ]
+
+        return status
+    
+    def check_health(self):
+
+        pan_health = self.driver.get_motor_health(
+            self.driver.pan_id
+        )
+
+        tilt_health = self.driver.get_motor_health(
+            self.driver.tilt_id
+        )
+
+        msg = DiagnosticArray()
+        msg.header.stamp = self.get_clock().now().to_msg()
+
+        msg.status = [
+            self.build_motor_diagnostic(
+                "head/pan",
+                pan_health
+            ),
+            self.build_motor_diagnostic(
+                "head/tilt",
+                tilt_health
+            ),
+        ]
+
+        self.health_pub.publish(msg)
     def control_loop(self):
         self.update_target()
 
@@ -121,9 +198,57 @@ class HeadNode(Node):
         self.current_tilt = self.tilt_start + tilt_blend * (self.tilt_goal - self.tilt_start)
 
         # Hardware Command
-        self.driver.set_pan(self.current_pan)
-        self.driver.set_tilt(self.current_tilt)
+        pan_result = self.driver.set_pan(
+            self.current_pan
+        )
 
+        tilt_result = self.driver.set_tilt(
+            self.current_tilt
+        )
+
+        if not pan_result["ok"] or not tilt_result["ok"]:
+            self.publish_command_fault(
+                pan_result,
+                tilt_result
+            )
+
+    def publish_command_fault(self, pan_result, tilt_result):
+
+        msg = DiagnosticArray()
+        msg.header.stamp = self.get_clock().now().to_msg()
+
+        statuses = []
+
+        pan_status = DiagnosticStatus()
+        pan_status.name = "head/pan"
+        pan_status.hardware_id = str(self.driver.pan_id)
+
+        if pan_result["ok"]:
+            pan_status.level = DiagnosticStatus.OK
+            pan_status.message = "Command successful"
+        else:
+            pan_status.level = DiagnosticStatus.ERROR
+            pan_status.message = "Pan command communication failure"
+
+        statuses.append(pan_status)
+
+        tilt_status = DiagnosticStatus()
+        tilt_status.name = "head/tilt"
+        tilt_status.hardware_id = str(self.driver.tilt_id)
+
+        if tilt_result["ok"]:
+            tilt_status.level = DiagnosticStatus.OK
+            tilt_status.message = "Command successful"
+        else:
+            tilt_status.level = DiagnosticStatus.ERROR
+            tilt_status.message = "Tilt command communication failure"
+
+        statuses.append(tilt_status)
+
+        msg.status = statuses
+
+        self.health_pub.publish(msg)
+    
     def destroy_node(self):
         try:
             self.driver.disable()
