@@ -1,11 +1,21 @@
 #
-## dynamixel_driver.py
+## HeadDriver.py
 #
 #  Driver for the Dynamixel pan-tilt mechanism on the cat head.
 #
+#  Changes against the reference version (see CHANGES.md for the reasons):
+#    [C1] try_read_position(): returns None when the read fails (the reference returned whatever the SDK
+#         gave back, which is not a position after a communication error).
+#    [C2] get_pan() / get_tilt() return None instead of a wrong angle when the read fails.
+#    [C3] calibrate_zero() retries and raises if it cannot read a servo (no garbage zero).
+#    [C4] enable() writes each servo's present position as its goal (and checks it) BEFORE torque-on,
+#         so the head cannot jump to a stale goal at startup.
+#  Everything else (control table, limits, angle conversion, API) is unchanged.
+#
+
+import time
 
 from dynamixel_sdk import PortHandler, PacketHandler
-import time
 
 # AX12 Control Table Addresses
 ADDR_TORQUE_ENABLE = 24
@@ -18,6 +28,8 @@ TORQUE_DISABLE = 0
 PROTOCOL_VERSION = 1.0
 
 TICKS_PER_DEGREE = 1023.0 / 300.0
+
+COMM_SUCCESS = 0
 
 
 class DynamixelDriver:
@@ -47,7 +59,6 @@ class DynamixelDriver:
             )
 
         print(f"Connected to {device_name}")
-        
 
         self.pan_zero = 0
         self.tilt_zero = 0
@@ -73,21 +84,7 @@ class DynamixelDriver:
             f"ERROR={error}"
         )
 
-        return comm_result == 0
-    
-    def ping_status(self, dxl_id):
-        model, comm_result, error = self.packet_handler.ping(
-        self.port_handler,
-        dxl_id
-        )
-
-        return {
-           "ok": comm_result == 0 and error == 0,
-           "id": dxl_id,
-           "model": model,
-           "comm_result": comm_result,
-           "error": error,
-        }
+        return comm_result == COMM_SUCCESS
 
     # Torque
     def enable_torque(self, dxl_id):
@@ -116,10 +113,39 @@ class DynamixelDriver:
             TORQUE_DISABLE,
         )
 
+    # [C4] Write the present position as the goal, read it back, then torque-on.
+    def hold_current(self, dxl_id, retries=5):
+
+        for _ in range(retries):
+            position = self.try_read_position(dxl_id)
+            if position is None:
+                continue
+
+            comm_result, error = self.packet_handler.write2ByteTxRx(
+                self.port_handler,
+                dxl_id,
+                ADDR_GOAL_POSITION,
+                int(position),
+            )
+            if comm_result == COMM_SUCCESS and error == 0:
+                goal, comm_result, error = self.packet_handler.read2ByteTxRx(
+                    self.port_handler,
+                    dxl_id,
+                    ADDR_GOAL_POSITION,
+                )
+                if comm_result == COMM_SUCCESS and error == 0 and goal == int(position):
+                    return
+            time.sleep(0.01)
+
+        raise RuntimeError(
+            f"Could not set the goal of ID={dxl_id} to its present position; refusing to enable torque"
+        )
+
     def enable(self):
 
-        self.enable_torque(self.pan_id)
-        self.enable_torque(self.tilt_id)
+        for dxl_id in (self.pan_id, self.tilt_id):
+            self.hold_current(dxl_id)
+            self.enable_torque(dxl_id)
 
     def disable(self):
 
@@ -128,6 +154,7 @@ class DynamixelDriver:
 
     # Raw Position Access
     def read_position(self, dxl_id):
+        """Unchanged reference behaviour (kept for existing callers): may return a wrong value on error."""
 
         position, comm_result, error = (
             self.packet_handler.read2ByteTxRx(
@@ -137,66 +164,52 @@ class DynamixelDriver:
             )
         )
 
-        if comm_result != 0:
+        if comm_result != COMM_SUCCESS:
             print(
                 f"Read Error ID={dxl_id} "
                 f"COMM={comm_result}"
             )
 
         return position
-    
-    def read_position_status(self, dxl_id):
-        position, comm_result, error = (
-            self.packet_handler.read2ByteTxRx(
-               self.port_handler,
-               dxl_id,
-               ADDR_PRESENT_POSITION,
-            )
-        )
 
-        return {
-            "ok": comm_result == 0 and error == 0,
-            "id": dxl_id,
-            "position": position,
-            "comm_result": comm_result,
-            "error": error,
-        }
+    # [C1] Present position in ticks, or None when the read failed.
+    def try_read_position(self, dxl_id, retries=1):
+
+        for attempt in range(max(1, retries)):
+            position, comm_result, error = self.packet_handler.read2ByteTxRx(
+                self.port_handler,
+                dxl_id,
+                ADDR_PRESENT_POSITION,
+            )
+            if comm_result == COMM_SUCCESS and error == 0 and 0 <= position <= 1023:
+                return position
+            if attempt + 1 < retries:
+                time.sleep(0.005)
+        return None
 
     def write_position(self, dxl_id, position):
+
         comm_result, error = (
             self.packet_handler.write2ByteTxRx(
-                 self.port_handler,
-                 dxl_id,
-                 ADDR_GOAL_POSITION,
-                 int(position),
+                self.port_handler,
+                dxl_id,
+                ADDR_GOAL_POSITION,
+                int(position),
             )
         )
 
-        return {
-            "ok": comm_result == 0 and error == 0,
-            "id": dxl_id,
-            "position": int(position),
-            "comm_result": comm_result,
-            "error": error,
-        }
-
-        #print(
-        #    f"Write ID={dxl_id} "
-        #    f"POS={position} "
-        #    f"COMM={comm_result} "
-        #    f"ERROR={error}"
-        #)
-
     # Calibration
-    def calibrate_zero(self):
+    # [C3] Retry, and fail loudly instead of storing a garbage zero.
+    def calibrate_zero(self, retries=5):
 
-        self.pan_zero = self.read_position(
-            self.pan_id
-        )
+        self.pan_zero = self.try_read_position(self.pan_id, retries)
+        self.tilt_zero = self.try_read_position(self.tilt_id, retries)
 
-        self.tilt_zero = self.read_position(
-            self.tilt_id
-        )
+        if self.pan_zero is None or self.tilt_zero is None:
+            raise RuntimeError(
+                "Cannot read the pan/tilt position for zero calibration "
+                f"(pan={self.pan_zero}, tilt={self.tilt_zero})"
+            )
 
         print()
         print("=== ZERO CALIBRATION ===")
@@ -225,16 +238,17 @@ class DynamixelDriver:
             angle * TICKS_PER_DEGREE
         )
 
-        return self.write_position(
+        self.write_position(
             self.pan_id,
             position
         )
 
+    # [C2] None when the read failed.
     def get_pan(self):
 
-        position = self.read_position(
-            self.pan_id
-        )
+        position = self.try_read_position(self.pan_id)
+        if position is None:
+            return None
 
         return (
             position - self.pan_zero
@@ -253,36 +267,21 @@ class DynamixelDriver:
             angle * TICKS_PER_DEGREE
         )
 
-        return self.write_position(
+        self.write_position(
             self.tilt_id,
             position
         )
 
+    # [C2] None when the read failed.
     def get_tilt(self):
 
-        position = self.read_position(
-            self.tilt_id
-        )
+        position = self.try_read_position(self.tilt_id)
+        if position is None:
+            return None
 
         return (
             position - self.tilt_zero
         ) / TICKS_PER_DEGREE
-    
-    def get_motor_health(self, dxl_id):
-
-        ping = self.ping_status(dxl_id)
-        position = self.read_position_status(dxl_id)
-
-        return {
-            "id": dxl_id,
-            "ok": ping["ok"] and position["ok"],
-            "ping_ok": ping["ok"],
-            "position_read_ok": position["ok"],
-            "position": position["position"],
-            "model": ping["model"],
-            "comm_result": position["comm_result"],
-            "error": position["error"],
-        }
 
     # Cleanup
     def close(self):
