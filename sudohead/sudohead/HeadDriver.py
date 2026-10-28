@@ -188,13 +188,12 @@ class DynamixelDriver:
         return None
 
     def write_position(self, dxl_id, position):
-
         comm_result, error = (
             self.packet_handler.write2ByteTxRx(
-                self.port_handler,
-                dxl_id,
-                ADDR_GOAL_POSITION,
-                int(position),
+                 self.port_handler,
+                 dxl_id,
+                 ADDR_GOAL_POSITION,
+                 int(position),
             )
         )
 
@@ -238,7 +237,7 @@ class DynamixelDriver:
             angle * TICKS_PER_DEGREE
         )
 
-        self.write_position(
+        return self.write_position(
             self.pan_id,
             position
         )
@@ -267,7 +266,7 @@ class DynamixelDriver:
             angle * TICKS_PER_DEGREE
         )
 
-        self.write_position(
+        return self.write_position(
             self.tilt_id,
             position
         )
@@ -282,6 +281,22 @@ class DynamixelDriver:
         return (
             position - self.tilt_zero
         ) / TICKS_PER_DEGREE
+    
+    def get_motor_health(self, dxl_id):
+
+        ping = self.ping_status(dxl_id)
+        position = self.read_position_status(dxl_id)
+
+        return {
+            "id": dxl_id,
+            "ok": ping["ok"] and position["ok"],
+            "ping_ok": ping["ok"],
+            "position_read_ok": position["ok"],
+            "position": position["position"],
+            "model": ping["model"],
+            "comm_result": position["comm_result"],
+            "error": position["error"],
+        }
 
     # Cleanup
     def close(self):
