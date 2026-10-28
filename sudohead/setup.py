@@ -27,6 +27,8 @@ setup(
 
             'head_node = sudohead.HeadNode:main',
             'head_target_generator = sudohead.head_target_generator:main',
+            'dynamixel_debug = sudohead.dynamixel_debug:main',
+            'spring_head_node = sudohead.spring_head_node:main',
             
         ],
     },
