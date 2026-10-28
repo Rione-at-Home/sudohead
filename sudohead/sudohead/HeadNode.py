@@ -46,7 +46,11 @@ class HeadNode(Node):
             d_cutoff=self.d_cutoff,
         )
 
-        self.driver = DynamixelDriver()
+        self.declare_parameter("head_device", "/dev/ttyUSB1")
+
+        device = self.get_parameter("head_device").value
+
+        self.driver = DynamixelDriver(device_name=device)
         self.driver.enable()
         self.driver.calibrate_zero()
 
