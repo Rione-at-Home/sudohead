@@ -1,6 +1,18 @@
 # sudohead
 
+![Full Robot](images/img1-full-robot.png)
+
+![CAD of Head Attached to Body Frame](images/img2-cad-of-head-attached-to-body-frame.png)
+
 ROS 2 package for controlling **Sudo's 2-DOF pan-tilt head** using Dynamixel AX-12A servos. The package provides a low-level hardware driver for communicating with Dynamixel servos, continuous target signal filtering via an adaptive One Euro Filter in the node execution loop, quintic polynomial trajectory motion profiling, and empirical benchmarking derived from offline Jupyter telemetry notebooks.
+
+## Repository Structure & Branches
+
+| Name / Branch | Description |
+| :--- | :--- |
+| **`main`** | The primary production version currently deployed and running on the physical robot. |
+| **`CAD`** | Mechanical components, assemblies, and 3D models for all parts used on the robot. |
+| **`filters_testing`** | Experimental scripts and files for evaluating motion smoothing filters (such as the 1-Euro filter) on the pan-tilt head tracking mechanism. |
 
 ---
 
